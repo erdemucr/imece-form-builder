@@ -1,22 +1,22 @@
-import React from 'react';
-import { useDragLayer } from 'react-dnd';
-import ItemTypes from '../ItemTypes';
-import { BoxDragPreview } from './component-drag-preview';
+import React from "react";
+import { useDragLayer } from "react-dnd";
+import ItemTypes from "../ItemTypes";
+import { BoxDragPreview } from "./component-drag-preview";
 
 const layerStyles = {
-  position: 'fixed',
-  pointerEvents: 'none',
+  position: "fixed",
+  pointerEvents: "none",
   zIndex: 100,
   left: 0,
   top: 0,
-  width: '100%',
-  height: '100%',
+  width: "100%",
+  height: "100%",
 };
 
 function getItemStyles(initialOffset, currentOffset) {
   if (!initialOffset || !currentOffset) {
     return {
-      display: 'none',
+      display: "none",
     };
   }
 
@@ -39,18 +39,17 @@ const CustomDragLayer = () => {
       isDragging: monitor.isDragging(),
     }));
 
-  function renderItem() {
+  if (!isDragging || !item) return null;
+
+  const renderItem = () => {
     switch (itemType) {
       case ItemTypes.BOX:
+      case ItemTypes.CARD:
         return <BoxDragPreview item={item} />;
       default:
         return null;
     }
-  }
-
-  if (!isDragging) {
-    return null;
-  }
+  };
 
   return (
     <div style={layerStyles}>

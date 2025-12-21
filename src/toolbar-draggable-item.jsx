@@ -1,11 +1,11 @@
 /**
-  * <ToolbarItem />
-  */
+ * <ToolbarItem />
+ */
 
-import React from 'react';
-import { useDrag } from 'react-dnd';
-import ItemTypes from './ItemTypes';
-import ID from './UUID';
+import React from "react";
+import { useDrag } from "react-dnd";
+import ItemTypes from "./ItemTypes";
+import ID from "./UUID";
 
 const ToolbarItem = ({ data, onCreate, onClick }) => {
   // Setup drag functionality using the useDrag hook
@@ -26,11 +26,7 @@ const ToolbarItem = ({ data, onCreate, onClick }) => {
   const opacity = isDragging ? 0.5 : 1;
 
   return (
-    <li 
-      ref={drag} 
-      onClick={onClick} 
-      style={{ opacity, cursor: 'move' }}
-    >
+    <li ref={drag} onClick={onClick} style={{ opacity, cursor: "move" }}>
       <i className={data.icon}></i>
       {data.name}
     </li>

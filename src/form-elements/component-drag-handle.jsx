@@ -1,19 +1,15 @@
-import React, { useEffect } from 'react';
-import { useDrag } from 'react-dnd';
-import { getEmptyImage } from 'react-dnd-html5-backend';
-import ItemTypes from '../ItemTypes';
+import React from "react";
+import { useDraggable } from "@dnd-kit/core";
 
 const style = {
-  cursor: 'move',
+  cursor: "grab",
 };
 
-const DragHandle = (props) => {
-  const { data, index, onDestroy, setAsChild, getDataById } = props;
-
-  const [, dragRef, dragPreviewRef] = useDrag({
-    type: ItemTypes.BOX,
-    item: () => ({
-      itemType: ItemTypes.BOX,
+const DragHandle = ({ data, index, onDestroy, setAsChild, getDataById }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: data.id,
+    data: {
+      itemType: "BOX",
       index: data.parentId ? -1 : index,
       parentIndex: data.parentIndex,
       id: data.id,
@@ -22,24 +18,21 @@ const DragHandle = (props) => {
       setAsChild,
       getDataById,
       data,
-    }),
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
+    },
   });
 
-  // Use empty image as drag preview
-  useEffect(() => {
-    dragPreviewRef(getEmptyImage(), {
-      // IE fallback: specify that we'd rather screenshot the node
-      // when it already knows it's being dragged so we can hide it with CSS.
-      captureDraggingState: true,
-    });
-  }, [dragPreviewRef]);
-
   return (
-    <div ref={dragRef} className="btn is-isolated" style={style}>
-      <i className="is-isolated fas fa-grip-vertical"></i>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="btn is-isolated"
+      style={{
+        ...style,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+    >
+      <i className="is-isolated fas fa-grip-vertical" />
     </div>
   );
 };
