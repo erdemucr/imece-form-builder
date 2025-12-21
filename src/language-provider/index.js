@@ -1,40 +1,61 @@
-import enLang from './entries/en-us';
-import itLang from './entries/it-it';
-import vnLang from './entries/vi-vn';
-import faLang from './entries/fa-ir';
+"use strict";
 
-export const AppLanguages = [
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true,
+});
+exports["default"] = exports.AppLanguages = void 0;
+
+var _enUs = _interopRequireDefault(require("./entries/en-us"));
+
+var _itIt = _interopRequireDefault(require("./entries/it-it"));
+
+var _viVn = _interopRequireDefault(require("./entries/vi-vn"));
+
+var _faIr = _interopRequireDefault(require("./entries/fa-ir"));
+
+var _trIr = _interopRequireDefault(require("./entries/tr-tr"));
+
+var AppLanguages = [
   {
-    languageId: 'vietnamese',
-    locale: 'vi',
-    name: 'Vietnamese',
-    icon: 'vn',
+    languageId: "vietnamese",
+    locale: "vi",
+    name: "Vietnamese",
+    icon: "vn",
   },
   {
-    languageId: 'english',
-    locale: 'en',
-    name: 'English',
-    icon: 'us',
+    languageId: "english",
+    locale: "en",
+    name: "English",
+    icon: "us",
   },
   {
-    languageId: 'italian',
-    locale: 'it',
-    name: 'Italiano',
-    icon: 'it',
+    languageId: "italian",
+    locale: "it",
+    name: "Italiano",
+    icon: "it",
   },
   {
-    languageId: 'persian',
-    locale: 'ir',
-    name: 'farsi',
-    icon: 'ir',
+    languageId: "persian",
+    locale: "ir",
+    name: "farsi",
+    icon: "ir",
+  },
+  {
+    languageId: "turkish",
+    locale: "tr",
+    name: "turkish",
+    icon: "tr",
   },
 ];
-
-const AppLocale = {
-  en: enLang,
-  vi: vnLang,
-  it: itLang,
-  fa: faLang,
+exports.AppLanguages = AppLanguages;
+var AppLocale = {
+  en: _enUs["default"],
+  vi: _viVn["default"],
+  it: _itIt["default"],
+  fa: _faIr["default"],
+  tr: _trIr["default"],
 };
-
-export default AppLocale;
+var _default = AppLocale;
+exports["default"] = _default;

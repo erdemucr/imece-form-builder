@@ -1,10 +1,11 @@
-import React, { useRef } from "react";
-import { useDrop } from "react-dnd";
+import React from "react";
+import { useDroppable } from "@dnd-kit/core";
 import FormElements from "../form-elements";
 import ItemTypes from "../ItemTypes";
-
 import CustomElement from "../form-elements/custom-element";
 import Registry from "../stores/registry";
+
+/* ---------------- helpers ---------------- */
 
 function getCustomElement(item, props) {
   if (!item.component || typeof item.component !== "function") {
@@ -43,6 +44,13 @@ function getStyle(backgroundColor) {
     float: "left",
   };
 }
+
+/**
+ * 🔧 CUSTOM FIX
+ * - fieldset
+ * - _col_row
+ * - isContainer flag
+ */
 function isContainer(item) {
   if (!item) return false;
 
@@ -51,12 +59,17 @@ function isContainer(item) {
     if (data) {
       if (data.isContainer) return true;
       if (data.field_name) {
-        return data.field_name.indexOf("_col_row") > -1;
+        return (
+          data.field_name.indexOf("_col_row") > -1 ||
+          data.field_name.indexOf("fieldset") > -1
+        );
       }
     }
   }
   return false;
 }
+
+/* ---------------- component ---------------- */
 
 const Dustbin = ({
   id,
@@ -76,16 +89,16 @@ const Dustbin = ({
     data: {
       col,
       parentIndex,
+      containerData: data,
     },
   });
 
   const draggedItem = active?.data?.current;
-
   const sameCard = draggedItem && draggedItem.parentIndex === parentIndex;
 
   let backgroundColor = "rgba(0, 0, 0, .03)";
 
-  if (!sameCard && isOver && draggedItem && !draggedItem?.data?.isContainer) {
+  if (!sameCard && isOver && draggedItem && !isContainer(draggedItem)) {
     backgroundColor = "#F7F589";
   }
 

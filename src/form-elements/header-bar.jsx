@@ -2,39 +2,45 @@
  * <HeaderBar />
  */
 
-import React from 'react';
-// import Grip from '../multi-column/grip';
-import DragHandle from './component-drag-handle';
+import React from "react";
+import DragHandle from "./component-drag-handle";
 
 export default class HeaderBar extends React.Component {
   render() {
+    const { data, index, onDestroy, setAsChild, editModeOn, parent } =
+      this.props;
+
     return (
       <div className="toolbar-header">
-        <span className="badge badge-secondary">{this.props.data.text}</span>
+        <span className="badge badge-secondary">{data.text}</span>
+
         <div className="toolbar-header-buttons">
-          {this.props.data.element !== 'LineBreak' && (
+          {data.element !== "LineBreak" && (
             <div
               className="btn is-isolated"
-              onClick={this.props.editModeOn.bind(
-                this.props.parent,
-                this.props.data
-              )}
+              onClick={editModeOn.bind(parent, data)}
             >
               <i className="is-isolated fas fa-edit"></i>
             </div>
           )}
+
+          {/* 🔥 Manuel eklenen confirm logic */}
           <div
             className="btn is-isolated"
-            onClick={this.props.onDestroy.bind(this, this.props.data)}
+            onClick={() => {
+              if (window.confirm("Silmek istediğinize emin misiniz?")) {
+                onDestroy(data);
+              }
+            }}
           >
             <i className="is-isolated fas fa-trash"></i>
           </div>
 
           <DragHandle
-            data={this.props.data}
-            index={this.props.index}
-            onDestroy={this.props.onDestroy}
-            setAsChild={this.props.setAsChild}
+            data={data}
+            index={index}
+            onDestroy={onDestroy}
+            setAsChild={setAsChild}
           />
         </div>
       </div>

@@ -6,6 +6,29 @@ import ComponentHeader from "../form-elements/component-header";
 import ComponentLabel from "../form-elements/component-label";
 import Dustbin from "./dustbin";
 import store from "../stores/store";
+import ItemTypes from "../ItemTypes";
+
+/* ---------------- helpers ---------------- */
+
+function isContainer(item) {
+  if (!item) return false;
+
+  if (item.itemType !== ItemTypes.CARD) {
+    const { data } = item;
+    if (data) {
+      if (data.isContainer) return true;
+      if (data.field_name) {
+        return (
+          data.field_name.includes("_col_row") ||
+          data.field_name.includes("fieldset")
+        );
+      }
+    }
+  }
+  return false;
+}
+
+/* ---------------- base ---------------- */
 
 class MultiColumnRowBase extends React.Component {
   render() {
@@ -19,9 +42,10 @@ class MultiColumnRowBase extends React.Component {
       seq,
       className,
       index,
+      style,
     } = this.props;
 
-    const { childItems, pageBreakBefore } = data;
+    const { childItems = [], pageBreakBefore } = data;
 
     let baseClasses = "SortableItem rfb-item";
     if (pageBreakBefore) baseClasses += " alwaysbreak";
@@ -31,27 +55,38 @@ class MultiColumnRowBase extends React.Component {
         onDragEnd={({ active, over }) => {
           if (!over) return;
 
-          const droppedItem = active.data.current;
-          const target = over.data.current;
+          const droppedItem = active.data?.current;
+          const target = over.data?.current;
 
           if (!droppedItem || !target) return;
 
-          if (droppedItem.col === target.col) return;
+          // same column + same parent → no-op
+          if (
+            droppedItem.col === target.col &&
+            droppedItem.parentIndex === target.parentIndex
+          ) {
+            return;
+          }
 
-          const isBusy = !!childItems[target.col];
+          // container cannot be dropped
+          if (isContainer(droppedItem)) return;
 
-          if (!droppedItem?.data?.isContainer) {
-            const isNew = !droppedItem.data?.id;
-            const itemData = isNew
-              ? droppedItem.onCreate(droppedItem.data)
-              : droppedItem.data;
+          const isBusy =
+            Array.isArray(childItems) && childItems[target.col] !== null;
 
-            setAsChild?.(data, itemData, target.col, isBusy);
+          const isNew = !droppedItem.data?.id;
+          const itemData = isNew
+            ? droppedItem.onCreate(droppedItem.data)
+            : droppedItem.data;
+
+          setAsChild?.(data, itemData, target.col, isBusy);
+
+          if (isNew) {
             store.dispatch("deleteLastItem");
           }
         }}
       >
-        <div style={{ ...this.props.style }} className={baseClasses}>
+        <div style={{ ...style }} className={baseClasses}>
           <ComponentHeader {...this.props} />
           <div>
             <ComponentLabel {...this.props} />
@@ -84,3 +119,44 @@ class MultiColumnRowBase extends React.Component {
     );
   }
 }
+
+/* ---------------- wrappers ---------------- */
+
+const TwoColumnRow = ({ data, class_name, ...rest }) => {
+  const className = class_name || "col-md-6";
+
+  if (!data.childItems) {
+    // eslint-disable-next-line no-param-reassign
+    data.childItems = [null, null];
+    data.isContainer = true;
+  }
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+const ThreeColumnRow = ({ data, class_name, ...rest }) => {
+  const className = class_name || "col-md-4";
+
+  if (!data.childItems) {
+    // eslint-disable-next-line no-param-reassign
+    data.childItems = [null, null, null];
+    data.isContainer = true;
+  }
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+const MultiColumnRow = ({ data, ...rest }) => {
+  const colCount = data.col_count || 4;
+  const className = data.class_name || (colCount === 4 ? "col-md-3" : "col");
+
+  if (!data.childItems) {
+    // eslint-disable-next-line no-param-reassign
+    data.childItems = Array.from({ length: colCount }, () => null);
+    data.isContainer = true;
+  }
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+export { TwoColumnRow, ThreeColumnRow, MultiColumnRow };

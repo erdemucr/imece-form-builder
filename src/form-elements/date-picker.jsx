@@ -1,8 +1,8 @@
-import React from 'react';
-import { format, parse, parseISO } from 'date-fns';
-import ReactDatePicker from 'react-datepicker';
-import ComponentHeader from './component-header';
-import ComponentLabel from './component-label';
+import React from "react";
+import { format, parse, parseISO } from "date-fns";
+import ReactDatePicker from "react-datepicker";
+import ComponentHeader from "./component-header";
+import ComponentLabel from "./component-label";
 
 class DatePicker extends React.Component {
   constructor(props) {
@@ -20,12 +20,12 @@ class DatePicker extends React.Component {
     const { formatMask } = this.state;
     if (dt && dt.target) {
       placeholder =
-        dt && dt.target && dt.target.value === ''
+        dt && dt.target && dt.target.value === ""
           ? formatMask.toLowerCase()
-          : '';
+          : "";
       const formattedDate = dt.target.value
         ? format(parseISO(dt.target.value), formatMask)
-        : '';
+        : "";
       this.setState({
         value: formattedDate,
         internalValue: formattedDate,
@@ -33,7 +33,7 @@ class DatePicker extends React.Component {
       });
     } else {
       this.setState({
-        value: dt ? format(dt, formatMask) : '',
+        value: dt ? format(dt, formatMask) : "",
         internalValue: dt,
         placeholder,
       });
@@ -43,9 +43,9 @@ class DatePicker extends React.Component {
   static updateFormat(props, oldFormatMask) {
     const { showTimeSelect, showTimeSelectOnly, showTimeInput } = props.data;
     const dateFormat =
-      showTimeSelect && showTimeSelectOnly ? '' : props.data.dateFormat;
+      showTimeSelect && showTimeSelectOnly ? "" : props.data.dateFormat;
     const timeFormat =
-      showTimeSelect || showTimeInput ? props.data.timeFormat : '';
+      showTimeSelect || showTimeInput ? props.data.timeFormat : "";
     const formatMask = `${dateFormat} ${timeFormat}`.trim();
     const updated = formatMask !== oldFormatMask;
 
@@ -58,14 +58,14 @@ class DatePicker extends React.Component {
     const { defaultToday } = props.data;
     if (
       defaultToday &&
-      (props.defaultValue === '' || props.defaultValue === undefined)
+      (props.defaultValue === "" || props.defaultValue === undefined)
     ) {
       value = format(new Date(), formatMask);
       internalValue = new Date();
     } else {
       value = props.defaultValue;
 
-      if (value === '' || value === undefined) {
+      if (value === "" || value === undefined) {
         internalValue = undefined;
       } else {
         internalValue = parse(value, state.formatMask, new Date());
@@ -104,8 +104,8 @@ class DatePicker extends React.Component {
     const { showTimeSelect, showTimeSelectOnly, showTimeInput } =
       this.props.data;
     const props = {};
-    props.type = 'date';
-    props.className = 'form-control';
+    props.type = "date";
+    props.className = "form-control";
     props.name = this.props.data.field_name;
     const readOnly = this.props.data.readOnly || this.props.read_only;
     const iOS =
@@ -117,9 +117,9 @@ class DatePicker extends React.Component {
       props.ref = this.inputField;
     }
 
-    let baseClasses = 'SortableItem rfb-item';
+    let baseClasses = "SortableItem rfb-item";
     if (this.props.data.pageBreakBefore) {
-      baseClasses += ' alwaysbreak';
+      baseClasses += " alwaysbreak";
     }
 
     return (
@@ -145,7 +145,7 @@ class DatePicker extends React.Component {
                 name={props.name}
                 ref={props.ref}
                 onChange={this.handleChange}
-                dateFormat="MM/DD/YYYY"
+                dateFormat="DD/MM/YYYY"
                 value={this.state.value}
                 className="form-control"
               />
@@ -156,7 +156,7 @@ class DatePicker extends React.Component {
                 ref={props.ref}
                 onChange={this.handleChange}
                 selected={this.state.internalValue}
-                todayButton={'Today'}
+                todayButton={"Today"}
                 className="form-control"
                 isClearable={true}
                 showTimeSelect={showTimeSelect}
