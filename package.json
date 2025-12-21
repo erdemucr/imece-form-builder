@@ -39,6 +39,7 @@
     "react-datepicker": "^8.3.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
+    "dnd-core": "^16.0.1",
     "react-draft-wysiwyg": "^1.15.0",
     "react-intl": "^7.1.11",
     "react-select": "^5.10.1",

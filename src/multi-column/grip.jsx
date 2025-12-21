@@ -1,21 +1,17 @@
-import React from 'react';
-import { DragSource } from 'react-dnd';
-import ItemTypes from '../ItemTypes';
+import React from "react";
+import { useDraggable } from "@dnd-kit/core";
+import ItemTypes from "../ItemTypes";
 
 const style = {
-  // display: 'inline-block',
-  // border: '1px dashed gray',
-  // padding: '0.5rem 1rem',
-  // backgroundColor: 'white',
-  cursor: 'move',
+  cursor: "move",
 };
 
-const gripSource = {
-  beginDrag(props) {
-    const {
-      data, index, onDestroy, setAsChild, getDataById,
-    } = props;
-    return {
+const Grip = (props) => {
+  const { data, index, onDestroy, setAsChild, getDataById } = props;
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: data.id,
+    data: {
       itemType: ItemTypes.BOX,
       index: data.parentId ? -1 : index,
       parentIndex: data.parentIndex,
@@ -25,18 +21,23 @@ const gripSource = {
       setAsChild,
       getDataById,
       data,
-    };
-  },
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="btn is-isolated"
+      style={{
+        ...style,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      <i className="is-isolated fas fa-grip-vertical" />
+    </div>
+  );
 };
 
-const Grip = ({ connectDragSource }) => connectDragSource(
-  <div className="btn is-isolated" style={style} ><i className="is-isolated fas fa-grip-vertical"></i></div>,
-);
-
-export default DragSource(
-  ItemTypes.BOX,
-  gripSource,
-  (connect) => ({
-    connectDragSource: connect.dragSource(),
-  }),
-)(Grip);
+export default Grip;
