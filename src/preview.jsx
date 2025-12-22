@@ -53,6 +53,7 @@ const Preview = (props) => {
     manualEditModeOff,
     editModeOn,
     parent,
+    registry, // Custom element registry için eklendi
   } = props;
 
   const [data, setData] = useState(propsData || []);
@@ -307,130 +308,151 @@ const Preview = (props) => {
     store.dispatch("delete", item);
   };
 
-  const getElement = (item, index) => {
-    console.log("getElement called:", { item, index, element: item?.element });
-
-    if (!item || !item.element) {
-      console.warn("⚠️ Invalid item in getElement:", item);
-      return (
-        <div
-          className="form-element-error"
-          style={{
-            border: "1px solid #ff6b6b",
-            padding: "10px",
-            margin: "5px 0",
-            backgroundColor: "#ffeaea",
-          }}
-        >
-          Error: Invalid item (no element property)
-        </div>
-      );
-    }
-
-    // Custom element kontrolü
-    if (item.custom) {
-      console.log("🛠️ Custom element detected:", item.key);
-      if (!item.component || typeof item.component !== "function") {
-        item.component = this.props.registry.get(item.key);
-        if (!item.component) {
-          console.error(`❌ Custom element "${item.key}" was not registered`);
-          return (
-            <div
-              className="custom-element-error"
-              style={{
-                border: "1px solid #ffc107",
-                padding: "10px",
-                margin: "5px 0",
-                backgroundColor: "#fff3cd",
-              }}
-            >
-              Error: Custom element "{item.key}" not found in registry
-            </div>
-          );
-        }
-      }
-    }
-
-    // Form elementini bul
-    console.log("🔎 Looking for element:", item.element);
-    console.log(
-      "📚 Available SortableFormElements:",
-      Object.keys(SortableFormElements || {})
-    );
-
-    const SortableFormElement = SortableFormElements
-      ? SortableFormElements[item.element]
-      : undefined;
-
-    if (!SortableFormElement) {
-      console.error(`❌ Form element "${item.element}" not found!`, {
+  // DÜZELTME: getElement fonksiyonunu arrow function olarak değiştir ve this bağlamını düzelt
+  const getElement = useCallback(
+    (item, index) => {
+      console.log("getElement called:", {
         item,
-        availableElements: Object.keys(SortableFormElements || {}),
-        SortableFormElements,
+        index,
+        element: item?.element,
       });
 
-      // Fallback için basit bir bileşen
-      const FallbackComponent = (props) => (
-        <div
-          style={{
-            border: "2px dashed #6c757d",
-            padding: "15px",
-            marginBottom: "10px",
-            backgroundColor: "#f8f9fa",
-            color: "#6c757d",
-          }}
-        >
+      if (!item || !item.element) {
+        console.warn("⚠️ Invalid item in getElement:", item);
+        return (
           <div
+            className="form-element-error"
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
+              border: "1px solid #ff6b6b",
+              padding: "10px",
+              margin: "5px 0",
+              backgroundColor: "#ffeaea",
             }}
+            key={item?.id || `error-${index}`}
           >
-            <div>
-              <strong>Missing: {item.element}</strong>
-              <div style={{ fontSize: "12px", marginTop: "5px" }}>
-                ID: {item.id} | Type: {item.element}
-              </div>
-            </div>
-            <button
-              onClick={() =>
-                console.log("Debug:", { item, SortableFormElements })
-              }
-              style={{ padding: "5px 10px", fontSize: "12px" }}
-            >
-              Debug
-            </button>
+            Error: Invalid item (no element property)
           </div>
-        </div>
+        );
+      }
+
+      // Custom element kontrolü
+      if (item.custom) {
+        console.log("🛠️ Custom element detected:", item.key);
+        if (!item.component || typeof item.component !== "function") {
+          if (registry) {
+            item.component = registry.get(item.key);
+          }
+          if (!item.component) {
+            console.error(`❌ Custom element "${item.key}" was not registered`);
+            return (
+              <div
+                className="custom-element-error"
+                style={{
+                  border: "1px solid #ffc107",
+                  padding: "10px",
+                  margin: "5px 0",
+                  backgroundColor: "#fff3cd",
+                }}
+                key={item.id}
+              >
+                Error: Custom element "{item.key}" not found in registry
+              </div>
+            );
+          }
+        }
+      }
+
+      // Form elementini bul
+      console.log("🔎 Looking for element:", item.element);
+      console.log(
+        "📚 Available SortableFormElements:",
+        Object.keys(SortableFormElements || {})
       );
 
-      return <FallbackComponent key={item.id} />;
-    }
+      const SortableFormElement = SortableFormElements
+        ? SortableFormElements[item.element]
+        : undefined;
 
-    console.log("✅ Found element:", item.element, SortableFormElement);
+      if (!SortableFormElement) {
+        console.error(`❌ Form element "${item.element}" not found!`, {
+          item,
+          availableElements: Object.keys(SortableFormElements || {}),
+          SortableFormElements,
+        });
 
-    return (
-      <SortableFormElement
-        id={item.id}
-        seq={this.seq}
-        index={index}
-        moveCard={this.moveCard}
-        insertCard={this.insertCard}
-        mutable={false}
-        parent={this.props.parent}
-        editModeOn={this.props.editModeOn}
-        isDraggable={true}
-        key={item.id}
-        sortData={item.id}
-        data={item}
-        getDataById={this.getDataById}
-        setAsChild={this.setAsChild}
-        removeChild={this.removeChild}
-        _onDestroy={this._onDestroy}
-      />
-    );
-  };
+        // Fallback için basit bir bileşen
+        const FallbackComponent = (props) => (
+          <div
+            style={{
+              border: "2px dashed #6c757d",
+              padding: "15px",
+              marginBottom: "10px",
+              backgroundColor: "#f8f9fa",
+              color: "#6c757d",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <strong>Missing: {item.element}</strong>
+                <div style={{ fontSize: "12px", marginTop: "5px" }}>
+                  ID: {item.id} | Type: {item.element}
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  console.log("Debug:", { item, SortableFormElements })
+                }
+                style={{ padding: "5px 10px", fontSize: "12px" }}
+              >
+                Debug
+              </button>
+            </div>
+          </div>
+        );
+
+        return <FallbackComponent key={item.id} />;
+      }
+
+      console.log("✅ Found element:", item.element, SortableFormElement);
+
+      return (
+        <SortableFormElement
+          id={item.id}
+          seq={seq.current}
+          index={index}
+          moveCard={() => {}} // Bu fonksiyon tanımlı değil, boş bırakıldı
+          insertCard={insertCard}
+          mutable={false}
+          parent={parent}
+          editModeOn={editModeOn}
+          isDraggable={true}
+          key={item.id}
+          sortData={item.id}
+          data={item}
+          getDataById={getDataById}
+          setAsChild={setAsChild}
+          removeChild={removeChild}
+          _onDestroy={_onDestroy}
+        />
+      );
+    },
+    [
+      getDataById,
+      insertCard,
+      setAsChild,
+      removeChild,
+      _onDestroy,
+      parent,
+      editModeOn,
+      registry,
+    ]
+  );
 
   const showEditForm = () => {
     const handleUpdateElement = (element) => updateElement(element);
