@@ -122,7 +122,13 @@ const DraggableCard = (props) => {
         {...attributes}
         {...listeners}
         className="draggable-card"
-        data-element-type={data?.element}
+        data-element-type={
+          data?.element ??
+          data?.type ??
+          ComposedComponent?.displayName ??
+          ComposedComponent?.name ??
+          "unknown"
+        }
         data-card-id={id}
       >
         <ComposedComponent
