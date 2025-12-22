@@ -1,299 +1,413 @@
-/**
-  * <Preview />
-  */
-
-import React from 'react';
-import update from 'immutability-helper';
-import store from './stores/store';
-import FormElementsEdit from './form-dynamic-edit';
-import SortableFormElements from './sortable-form-elements';
-import CustomDragLayer from './form-elements/component-drag-layer';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  MeasuringStrategy,
+  defaultDropAnimationSideEffects,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import update from "immutability-helper";
+import store from "./stores/store";
+import FormElementsEdit from "./form-dynamic-edit";
+import SortableFormElements from "./sortable-form-elements";
+import CustomDragLayer from "./form-elements/component-drag-layer";
+import { SortableItem } from "./sortable-form-elements";
 
 const { PlaceHolder } = SortableFormElements;
 
-export default class Preview extends React.Component {
-  state = {
-    data: [],
-    answer_data: {},
+const dropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.5",
+      },
+    },
+  }),
+};
+
+const Preview = (props) => {
+  const {
+    onLoad,
+    onPost,
+    data: propsData,
+    url,
+    saveUrl,
+    saveAlways,
+    variables,
+    editElement,
+    editMode,
+    className = "col-md-9 react-form-builder-preview float-left",
+    renderEditForm = (props) => <FormElementsEdit {...props} />,
+    showCorrectColumn = false,
+    files = [],
+    manualEditModeOff,
+    editModeOn,
+    parent,
+  } = props;
+
+  const [data, setData] = useState(propsData || []);
+  const [answerData, setAnswerData] = useState({});
+  const [activeId, setActiveId] = useState(null);
+  const [activeItem, setActiveItem] = useState(null);
+  const editForm = useRef(null);
+  const seq = useRef(0);
+
+  // Store initialization
+  useEffect(() => {
+    store.setExternalHandler(onLoad, onPost);
+    store.subscribe((state) => handleStoreUpdate(state.data));
+    store.dispatch("load", {
+      loadUrl: url,
+      saveUrl,
+      data: propsData || [],
+      saveAlways,
+    });
+  }, []);
+
+  // Mouse down listener for edit mode
+  useEffect(() => {
+    const handleMouseDown = (e) => {
+      if (editForm.current && !editForm.current.contains(e.target)) {
+        manualEditModeOffHandler();
+      }
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, []);
+
+  // Configure sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleStoreUpdate = (newData) => {
+    const newAnswerData = {};
+
+    newData.forEach((item) => {
+      if (item && item.readOnly && variables && variables[item.variableKey]) {
+        newAnswerData[item.field_name] = variables[item.variableKey];
+      }
+    });
+
+    setData(newData);
+    setAnswerData(newAnswerData);
   };
 
-  constructor(props) {
-    super(props);
-
-    const { onLoad, onPost } = props;
-    store.setExternalHandler(onLoad, onPost);
-
-    this.editForm = React.createRef();
-    this.state = {
-      data: props.data || [],
-      answer_data: {},
-    };
-    this.seq = 0;
-
-    this._onUpdate = this._onChange.bind(this);
-    this.getDataById = this.getDataById.bind(this);
-    this.moveCard = this.moveCard.bind(this);
-    this.insertCard = this.insertCard.bind(this);
-    this.setAsChild = this.setAsChild.bind(this);
-    this.removeChild = this.removeChild.bind(this);
-    this._onDestroy = this._onDestroy.bind(this);
-  }
-
-  componentDidMount() {
-    const { data, url, saveUrl, saveAlways } = this.props;
-    store.subscribe(state => this._onUpdate(state.data));
-    store.dispatch('load', { loadUrl: url, saveUrl, data: data || [], saveAlways });
-    document.addEventListener('mousedown', this.editModeOff);
-  }
-
-  componentWillUnmount() {
-    document.removeEventListener('mousedown', this.editModeOff);
-  }
-
-  editModeOff = (e) => {
-    if (this.editForm.current && !this.editForm.current.contains(e.target)) {
-      this.manualEditModeOff();
-    }
-  }
-
-  manualEditModeOff = () => {
-    const { editElement } = this.props;
+  const manualEditModeOffHandler = () => {
     if (editElement && editElement.dirty) {
       editElement.dirty = false;
-      this.updateElement(editElement);
+      updateElement(editElement);
     }
-    this.props.manualEditModeOff();
-  }
+    manualEditModeOff();
+  };
 
-  _setValue(text) {
-    return text.replace(/[^A-Z0-9]+/ig, '_').toLowerCase();
-  }
+  const _setValue = (text) => {
+    return text.replace(/[^A-Z0-9]+/gi, "_").toLowerCase();
+  };
 
-  updateElement(element) {
-    const { data } = this.state;
+  const updateElement = (element) => {
+    const newData = [...data];
     let found = false;
 
-    for (let i = 0, len = data.length; i < len; i++) {
-      if (element.id === data[i].id) {
-        data[i] = element;
+    for (let i = 0, len = newData.length; i < len; i++) {
+      if (element.id === newData[i].id) {
+        newData[i] = element;
         found = true;
         break;
       }
     }
 
     if (found) {
-      this.seq = this.seq > 100000 ? 0 : this.seq + 1;
-      store.dispatch('updateOrder', data);
+      seq.current = seq.current > 100000 ? 0 : seq.current + 1;
+      store.dispatch("updateOrder", newData);
+      setData(newData);
     }
-  }
+  };
 
-  _onChange(data) {
-    const answer_data = {};
+  const getDataById = useCallback(
+    (id) => {
+      return data.find((x) => x && x.id === id);
+    },
+    [data]
+  );
 
-    data.forEach((item) => {
-      if (item && item.readOnly && this.props.variables[item.variableKey]) {
-        answer_data[item.field_name] = this.props.variables[item.variableKey];
+  const handleDragStart = (event) => {
+    const { active } = event;
+    const item = getDataById(active.id);
+    setActiveId(active.id);
+    setActiveItem(item);
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setActiveItem(null);
+
+    if (active.id !== over?.id) {
+      // Move within main container
+      const oldIndex = data.findIndex((item) => item?.id === active.id);
+      const newIndex = data.findIndex((item) => item?.id === over?.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newData = arrayMove(data, oldIndex, newIndex);
+        setData(newData);
+        store.dispatch("updateOrder", newData);
       }
-    });
-
-    this.setState({
-      data,
-      answer_data,
-    });
-  }
-
-  _onDestroy(item) {
-    if (item.childItems) {
-      item.childItems.forEach(x => {
-        const child = this.getDataById(x);
-        if (child) {
-          store.dispatch('delete', child);
-        }
-      });
     }
-    store.dispatch('delete', item);
-  }
+  };
 
-  getDataById(id) {
-    const { data } = this.state;
-    return data.find(x => x && x.id === id);
-  }
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setActiveItem(null);
+  };
 
-  swapChildren(data, item, child, col) {
+  const insertCard = (item, hoverIndex, id) => {
+    if (id) {
+      restoreCard(item, id);
+    } else {
+      const newData = [...data];
+      newData.splice(hoverIndex, 0, item);
+      setData(newData);
+      store.dispatch("insertItem", item);
+    }
+  };
+
+  const restoreCard = (item, id) => {
+    const parent = getDataById(item.data.parentId);
+    const oldItem = getDataById(id);
+
+    if (parent && oldItem) {
+      const newIndex = data.indexOf(oldItem);
+      const newData = [...data];
+
+      if (oldItem.col !== undefined && parent.childItems) {
+        parent.childItems[oldItem.col] = null;
+      }
+
+      delete oldItem.parentId;
+      delete oldItem.setAsChild;
+      delete oldItem.parentIndex;
+
+      item.index = newIndex;
+      seq.current = seq.current > 100000 ? 0 : seq.current + 1;
+
+      store.dispatch("updateOrder", newData);
+      setData(newData);
+    }
+  };
+
+  const setAsChild = (item, child, col, isBusy) => {
+    const newData = [...data];
+
+    if (swapChildren(newData, item, child, col)) {
+      return;
+    }
+
+    if (isBusy) {
+      return;
+    }
+
+    const oldParent = getDataById(child.parentId);
+    const oldCol = child.col;
+
+    item.childItems[col] = child.id;
+    child.col = col;
+    child.parentId = item.id;
+    child.parentIndex = newData.indexOf(item);
+
+    if (oldParent && oldParent.childItems) {
+      oldParent.childItems[oldCol] = null;
+    }
+
+    const list = newData.filter((x) => x && x.parentId === item.id);
+    const toRemove = list.filter((x) => item.childItems.indexOf(x.id) === -1);
+
+    if (toRemove.length > 0) {
+      const filteredData = newData.filter((x) => !toRemove.includes(x));
+      setData(filteredData);
+      store.dispatch("updateOrder", filteredData);
+    } else {
+      if (!getDataById(child.id)) {
+        newData.push(child);
+      }
+      setData(newData);
+      store.dispatch("updateOrder", newData);
+    }
+  };
+
+  const swapChildren = (dataArray, item, child, col) => {
     if (child.col !== undefined && item.id !== child.parentId) {
       return false;
     }
-    if (!(child.col !== undefined && child.col !== col && item.childItems[col])) {
-      // No child was assigned yet in both source and target.
+
+    if (
+      !(child.col !== undefined && child.col !== col && item.childItems[col])
+    ) {
       return false;
     }
+
     const oldId = item.childItems[col];
-    const oldItem = this.getDataById(oldId);
+    const oldItem = getDataById(oldId);
     const oldCol = child.col;
-    // eslint-disable-next-line no-param-reassign
-    item.childItems[oldCol] = oldId; oldItem.col = oldCol;
-    // eslint-disable-next-line no-param-reassign
-    item.childItems[col] = child.id; child.col = col;
-    store.dispatch('updateOrder', data);
+
+    item.childItems[oldCol] = oldId;
+    oldItem.col = oldCol;
+    item.childItems[col] = child.id;
+    child.col = col;
+
+    store.dispatch("updateOrder", dataArray);
     return true;
-  }
+  };
 
-  setAsChild(item, child, col, isBusy) {
-    const { data } = this.state;
-    if (this.swapChildren(data, item, child, col)) {
-      return;
-    } if (isBusy) {
-      return;
-    }
-    const oldParent = this.getDataById(child.parentId);
-    const oldCol = child.col;
-    // eslint-disable-next-line no-param-reassign
-    item.childItems[col] = child.id; child.col = col;
-    // eslint-disable-next-line no-param-reassign
-    child.parentId = item.id;
-    // eslint-disable-next-line no-param-reassign
-    child.parentIndex = data.indexOf(item);
-    if (oldParent) {
-      oldParent.childItems[oldCol] = null;
-    }
-    const list = data.filter(x => x && x.parentId === item.id);
-    const toRemove = list.filter(x => item.childItems.indexOf(x.id) === -1);
-    let newData = data;
-    if (toRemove.length) {
-      // console.log('toRemove', toRemove);
-      newData = data.filter(x => toRemove.indexOf(x) === -1);
-    }
-    if (!this.getDataById(child.id)) {
-      newData.push(child);
-    }
-    store.dispatch('updateOrder', newData);
-  }
-
-  removeChild(item, col) {
-    const { data } = this.state;
+  const removeChild = (item, col) => {
+    const newData = [...data];
     const oldId = item.childItems[col];
-    const oldItem = this.getDataById(oldId);
+    const oldItem = getDataById(oldId);
+
     if (oldItem) {
-      const newData = data.filter(x => x !== oldItem);
-      // eslint-disable-next-line no-param-reassign
       item.childItems[col] = null;
-      // delete oldItem.parentId;
-      this.seq = this.seq > 100000 ? 0 : this.seq + 1;
-      store.dispatch('updateOrder', newData);
-      this.setState({ data: newData });
+
+      const filteredData = newData.filter((x) => x !== oldItem);
+      seq.current = seq.current > 100000 ? 0 : seq.current + 1;
+
+      store.dispatch("updateOrder", filteredData);
+      setData(filteredData);
     }
-  }
+  };
 
-  restoreCard(item, id) {
-    const { data } = this.state;
-    const parent = this.getDataById(item.data.parentId);
-    const oldItem = this.getDataById(id);
-    if (parent && oldItem) {
-      const newIndex = data.indexOf(oldItem);
-      const newData = [...data]; // data.filter(x => x !== oldItem);
-      // eslint-disable-next-line no-param-reassign
-      parent.childItems[oldItem.col] = null;
-      delete oldItem.parentId;
-      // eslint-disable-next-line no-param-reassign
-      delete item.setAsChild;
-      // eslint-disable-next-line no-param-reassign
-      delete item.parentIndex;
-      // eslint-disable-next-line no-param-reassign
-      item.index = newIndex;
-      this.seq = this.seq > 100000 ? 0 : this.seq + 1;
-      store.dispatch('updateOrder', newData);
-      this.setState({ data: newData });
+  const _onDestroy = (item) => {
+    if (item.childItems) {
+      item.childItems.forEach((x) => {
+        const child = getDataById(x);
+        if (child) {
+          store.dispatch("delete", child);
+        }
+      });
     }
-  }
+    store.dispatch("delete", item);
+  };
 
-  insertCard(item, hoverIndex, id) {
-    const { data } = this.state;
-    if (id) {
-      this.restoreCard(item, id);
-    } else {
-      data.splice(hoverIndex, 0, item);
-      this.saveData(item, hoverIndex, hoverIndex);
-      store.dispatch('insertItem', item);
-    }
-  }
+  const getElement = (item, index) => {
+    if (!item || !item.element) return null;
 
-  moveCard(dragIndex, hoverIndex) {
-    const { data } = this.state;
-    const dragCard = data[dragIndex];
-    // happens sometimes when you click to insert a new item from the toolbox
-    if (dragCard !== undefined) {
-      this.saveData(dragCard, dragIndex, hoverIndex);
-    }
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  cardPlaceHolder(dragIndex, hoverIndex) {
-    // Dummy
-  }
-
-  saveData(dragCard, dragIndex, hoverIndex) {
-    const newData = update(this.state, {
-      data: {
-        $splice: [[dragIndex, 1], [hoverIndex, 0, dragCard]],
-      },
-    });
-    this.setState(newData);
-    store.dispatch('updateOrder', newData.data);
-  }
-
-  getElement(item, index) {
-    if (item.custom) {
-      if (!item.component || typeof item.component !== 'function') {
-        // eslint-disable-next-line no-param-reassign
-        item.component = this.props.registry.get(item.key);
+    if (item.custom && !item.component) {
+      if (props.registry) {
+        item.component = props.registry.get(item.key);
       }
     }
+
     const SortableFormElement = SortableFormElements[item.element];
 
-    if (SortableFormElement === null) {
+    if (!SortableFormElement) {
       return null;
     }
-    return <SortableFormElement id={item.id} seq={this.seq} index={index} moveCard={this.moveCard} insertCard={this.insertCard} mutable={false} parent={this.props.parent} editModeOn={this.props.editModeOn} isDraggable={true} key={item.id} sortData={item.id} data={item} getDataById={this.getDataById} setAsChild={this.setAsChild} removeChild={this.removeChild} _onDestroy={this._onDestroy} />;
-  }
 
-  showEditForm() {
-    const handleUpdateElement = (element) => this.updateElement(element);
-    handleUpdateElement.bind(this);
+    return (
+      <SortableItem
+        key={item.id}
+        id={item.id}
+        data={item}
+        index={index}
+        seq={seq.current}
+        moveCard={() => {}} // Not needed with dnd-kit
+        insertCard={insertCard}
+        mutable={false}
+        parent={parent}
+        editModeOn={editModeOn}
+        isDraggable={true}
+        getDataById={getDataById}
+        setAsChild={setAsChild}
+        removeChild={removeChild}
+        _onDestroy={_onDestroy}
+        item={item}
+      />
+    );
+  };
+
+  const showEditForm = () => {
+    const handleUpdateElement = (element) => updateElement(element);
 
     const formElementEditProps = {
-      showCorrectColumn: this.props.showCorrectColumn,
-      files: this.props.files,
-      manualEditModeOff: this.manualEditModeOff,
+      showCorrectColumn,
+      files,
+      manualEditModeOff: manualEditModeOffHandler,
       preview: this,
-      element: this.props.editElement,
+      element: editElement,
       updateElement: handleUpdateElement,
     };
 
-    return this.props.renderEditForm(formElementEditProps);
-  }
+    return renderEditForm(formElementEditProps);
+  };
 
-  render() {
-    let classes = this.props.className;
-    if (this.props.editMode) { classes += ' is-editing'; }
-    const data = this.state.data.filter(x => !!x && !x.parentId);
-    const items = data.map((item, index) => this.getElement(item, index));
-    return (
-      <div className={classes}>
-        <div className="edit-form" ref={this.editForm}>
-          {this.props.editElement !== null && this.showEditForm()}
-        </div>
-        <div className="Sortable">{items}</div>
-        <PlaceHolder id="form-place-holder" show={items.length === 0} index={items.length} moveCard={this.cardPlaceHolder} insertCard={this.insertCard} />
-        <CustomDragLayer/>
+  const filteredData = data.filter((x) => !!x && !x.parentId);
+  const items = filteredData.map((item, index) => getElement(item, index));
+  const itemIds = filteredData.map((item) => item?.id).filter(Boolean);
+
+  const classes = editMode ? `${className} is-editing` : className;
+
+  return (
+    <div className={classes}>
+      <div className="edit-form" ref={editForm}>
+        {editElement !== null && showEditForm()}
       </div>
-    );
-  }
-}
-Preview.defaultProps = {
-  showCorrectColumn: false,
-  files: [],
-  editMode: false,
-  editElement: null,
-  className: 'col-md-9 react-form-builder-preview float-left',
-  renderEditForm: props => <FormElementsEdit {...props} />,
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.Always,
+          },
+        }}
+      >
+        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+          <div className="Sortable">{items}</div>
+        </SortableContext>
+
+        <DragOverlay dropAnimation={dropAnimation}>
+          {activeItem ? (
+            <div style={{ opacity: 0.8, cursor: "grabbing" }}>
+              {getElement(
+                activeItem,
+                data.findIndex((item) => item?.id === activeId)
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      <PlaceHolder
+        id="form-place-holder"
+        show={items.length === 0}
+        index={items.length}
+        moveCard={() => {}}
+        insertCard={insertCard}
+      />
+    </div>
+  );
 };
+
+export default Preview;

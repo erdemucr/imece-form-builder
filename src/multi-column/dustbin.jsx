@@ -30,18 +30,31 @@ function getElement(item, props) {
   if (item.custom) return getCustomElement(item, props);
 
   const Element = FormElements[item.element || item.key];
+  if (!Element) {
+    console.warn(
+      `Element ${item.element || item.key} not found in FormElements`
+    );
+    return null;
+  }
+
   return <Element {...props} key={`form_${item.id}`} data={item} />;
 }
 
-function getStyle(backgroundColor) {
+function getStyle(backgroundColor, isOver, sameCard) {
   return {
-    border: "1px solid rgba(0,0,0,0.2)",
+    border: `1px ${
+      isOver && !sameCard ? "dashed #007bff" : "solid rgba(0,0,0,0.2)"
+    }`,
     minHeight: "2rem",
     minWidth: "7rem",
     width: "100%",
     backgroundColor,
     padding: 0,
     float: "left",
+    transition: "background-color 0.2s ease, border 0.2s ease",
+    position: "relative",
+    outline: isOver && !sameCard ? "2px dashed #007bff" : "none",
+    outlineOffset: "-2px",
   };
 }
 
@@ -80,37 +93,86 @@ const Dustbin = ({
   getDataById,
   onDropSuccess,
   setAsChild,
+  accept = ["CARD", "BOX", "TOOLBAR_ITEM"], // Kabul edilen drag tipleri
   ...rest
 }) => {
   const item = getDataById(items[col]);
 
-  const { isOver, setNodeRef, active } = useDroppable({
-    id,
+  const { isOver, setNodeRef, active, over } = useDroppable({
+    id: id || `dustbin-${parentIndex}-${col}`,
     data: {
+      type: "DUSTBIN",
       col,
       parentIndex,
       containerData: data,
+      acceptTypes: accept,
     },
   });
 
   const draggedItem = active?.data?.current;
   const sameCard = draggedItem && draggedItem.parentIndex === parentIndex;
 
+  // Aktif öğe bu dustbin'e uyuyor mu kontrol et
+  const canDrop = draggedItem && accept.includes(draggedItem.type);
+
   let backgroundColor = "rgba(0, 0, 0, .03)";
 
-  if (!sameCard && isOver && draggedItem && !isContainer(draggedItem)) {
+  if (isOver && canDrop && !sameCard && !isContainer(draggedItem)) {
     backgroundColor = "#F7F589";
+  } else if (isOver && canDrop && isContainer(draggedItem)) {
+    backgroundColor = "#D4EDDA"; // Konteyner için farklı renk
   }
+
+  // Drop işlemi başarılı olduğunda callback çağır
+  React.useEffect(() => {
+    if (over?.id === id && onDropSuccess && draggedItem) {
+      onDropSuccess(draggedItem, { col, parentIndex, data });
+    }
+  }, [over, id, onDropSuccess, draggedItem, col, parentIndex, data]);
 
   const element = getElement(item, rest);
 
   return (
     <div
       ref={setNodeRef}
-      style={getStyle(sameCard ? "rgba(0,0,0,.03)" : backgroundColor)}
+      style={getStyle(backgroundColor, isOver && canDrop, sameCard)}
+      className="dustbin"
+      data-dustbin-col={col}
+      data-parent-index={parentIndex}
     >
-      {!element && <span>Drop your element here</span>}
-      {element}
+      {/* Drop alanı overlay'i (isteğe bağlı) */}
+      {isOver && canDrop && !sameCard && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(247, 245, 137, 0.3)",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {/* İçerik */}
+      <div style={{ position: "relative", zIndex: 2 }}>
+        {!element ? (
+          <div
+            style={{
+              padding: "1rem",
+              textAlign: "center",
+              color: "#6c757d",
+              fontStyle: "italic",
+            }}
+          >
+            Element'i buraya sürükleyin
+          </div>
+        ) : (
+          element
+        )}
+      </div>
     </div>
   );
 };

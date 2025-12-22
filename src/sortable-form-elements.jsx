@@ -1,17 +1,42 @@
-import SortableElement from './sortable-element';
-import PlaceHolder from './form-place-holder';
-import BaseFormElements from './form-elements';
-import { TwoColumnRow, ThreeColumnRow, MultiColumnRow } from './multi-column';
-import { FieldSet } from './fieldset';
-import CustomElement from './form-elements/custom-element';
+// sortable-form-elements/index.js (ana export dosyası)
+import {
+  SortableElement,
+  SortableItem,
+  PlaceHolder,
+} from "./sortable-form-elements";
+import BaseFormElements from "./form-elements";
+import { TwoColumnRow, ThreeColumnRow, MultiColumnRow } from "./multi-column";
+import { FieldSet } from "./fieldset";
+import CustomElement from "./form-elements/custom-element";
 
 const {
-  Header, Paragraph, Label, LineBreak, TextInput, EmailInput, PhoneNumber, NumberInput, TextArea, Dropdown, Checkboxes,
-  DatePicker, RadioButtons, Image, Rating, Tags, Signature, HyperLink, Download, Camera, Range, FileUpload,
+  Header,
+  Paragraph,
+  Label,
+  LineBreak,
+  TextInput,
+  EmailInput,
+  PhoneNumber,
+  NumberInput,
+  TextArea,
+  Dropdown,
+  Checkboxes,
+  DatePicker,
+  RadioButtons,
+  Image,
+  Rating,
+  Tags,
+  Signature,
+  HyperLink,
+  Download,
+  Camera,
+  Range,
+  FileUpload,
 } = BaseFormElements;
 
 const FormElements = {};
 
+// Temel form elementlerini SortableElement ile sarmala
 FormElements.Header = SortableElement(Header);
 FormElements.Paragraph = SortableElement(Paragraph);
 FormElements.Label = SortableElement(Label);
@@ -34,11 +59,33 @@ FormElements.Download = SortableElement(Download);
 FormElements.Camera = SortableElement(Camera);
 FormElements.FileUpload = SortableElement(FileUpload);
 FormElements.Range = SortableElement(Range);
-FormElements.PlaceHolder = SortableElement(PlaceHolder);
+
+// Özel konteyner elementleri
 FormElements.FieldSet = SortableElement(FieldSet);
 FormElements.TwoColumnRow = SortableElement(TwoColumnRow);
 FormElements.ThreeColumnRow = SortableElement(ThreeColumnRow);
 FormElements.MultiColumnRow = SortableElement(MultiColumnRow);
 FormElements.CustomElement = SortableElement(CustomElement);
 
+// Yardımcı bileşenleri doğrudan export et
+FormElements.PlaceHolder = PlaceHolder;
+FormElements.SortableItem = SortableItem;
+FormElements.SortableElement = SortableElement;
+
+// Varsayılan form elementleri (sortable olmayan)
+FormElements.BaseFormElements = BaseFormElements;
+
 export default FormElements;
+
+// Named exports için
+export {
+  SortableElement,
+  SortableItem,
+  PlaceHolder,
+  BaseFormElements,
+  TwoColumnRow,
+  ThreeColumnRow,
+  MultiColumnRow,
+  FieldSet,
+  CustomElement,
+};
