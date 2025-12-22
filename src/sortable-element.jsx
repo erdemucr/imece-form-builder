@@ -11,6 +11,33 @@ const style = {
   cursor: "pointer",
 };
 
+const DebugComponent = ({ data, element }) => (
+  <div
+    style={{
+      border: "2px dashed #ff6b6b",
+      padding: "15px",
+      marginBottom: "10px",
+      backgroundColor: "#ffeaea",
+      color: "#d63031",
+    }}
+  >
+    <h4 style={{ margin: "0 0 10px 0" }}>⚠️ Component Error</h4>
+    <p>
+      <strong>Element Type:</strong> {element || "undefined"}
+    </p>
+    <p>
+      <strong>Data ID:</strong> {data?.id}
+    </p>
+    <p>
+      <strong>Available keys:</strong>{" "}
+      {data ? Object.keys(data).join(", ") : "no data"}
+    </p>
+    <p style={{ fontSize: "12px", marginTop: "10px" }}>
+      This component could not be loaded. Check console for details.
+    </p>
+  </div>
+);
+
 const DraggableCard = (props) => {
   const {
     index,
@@ -27,29 +54,30 @@ const DraggableCard = (props) => {
     ...restProps
   } = props;
 
-  // ComposedComponent kontrolü - UNDEFINED olmamalı
-  if (!ComposedComponent) {
-    console.error("❌ DraggableCard received undefined component:", {
-      props,
+  // DEBUG: Konsola bilgi yazdır
+  console.log("🚨 DraggableCard DEBUG:", {
+    id,
+    index,
+    data,
+    element: data?.element,
+    ComposedComponent,
+    type: typeof ComposedComponent,
+    isFunction: typeof ComposedComponent === "function",
+    props: props,
+  });
+
+  // ComposedComponent kontrolü
+  if (!ComposedComponent || typeof ComposedComponent !== "function") {
+    console.error("❌ DraggableCard received invalid component:", {
+      id,
       data,
       element: data?.element,
+      ComposedComponent,
+      availableProps: Object.keys(props),
     });
 
     // Fallback bileşeni göster
-    return (
-      <div
-        style={{
-          border: "1px solid #ff6b6b",
-          padding: "10px",
-          marginBottom: "8px",
-          backgroundColor: "#ffeaea",
-          color: "#ff6b6b",
-        }}
-      >
-        <strong>Error:</strong> Component not found for element: "
-        {data?.element}"
-      </div>
-    );
+    return <DebugComponent data={data} element={data?.element} />;
   }
 
   const {
@@ -86,35 +114,45 @@ const DraggableCard = (props) => {
     ...customStyle,
   };
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={dragStyle}
-      {...attributes}
-      {...listeners}
-      className="draggable-card"
-      data-element-type={data?.element}
-      data-card-id={id}
-    >
-      <ComposedComponent
-        {...restProps}
-        index={index}
-        id={id}
-        moveCard={moveCard}
-        seq={seq}
+  try {
+    return (
+      <div
+        ref={setNodeRef}
+        style={dragStyle}
+        {...attributes}
+        {...listeners}
+        className="draggable-card"
+        data-element-type={data?.element}
+        data-card-id={id}
+      >
+        <ComposedComponent
+          {...restProps}
+          index={index}
+          id={id}
+          moveCard={moveCard}
+          seq={seq}
+          data={data}
+          setAsChild={setAsChild}
+          parentIndex={parentIndex}
+          col={col}
+          isDragging={isDragging}
+          isOver={isOver}
+          dragAttributes={attributes}
+          dragListeners={listeners}
+        />
+      </div>
+    );
+  } catch (error) {
+    console.error("💥 Error rendering ComposedComponent:", error);
+    return (
+      <DebugComponent
         data={data}
-        setAsChild={setAsChild}
-        parentIndex={parentIndex}
-        col={col}
-        isDragging={isDragging}
-        isOver={isOver}
-        dragAttributes={attributes}
-        dragListeners={listeners}
+        element={data?.element}
+        error={error.message}
       />
-    </div>
-  );
+    );
+  }
 };
-
 DraggableCard.propTypes = {
   component: PropTypes.elementType.isRequired,
   index: PropTypes.number.isRequired,
@@ -241,24 +279,15 @@ export default function createDraggableCard(ComposedComponent) {
   if (!ComposedComponent) {
     console.error("❌ createDraggableCard called with undefined component");
 
-    // Boş bir bileşen döndür
-    const EmptyComponent = () => (
-      <div
-        style={{
-          border: "1px dashed #ccc",
-          padding: "10px",
-          margin: "5px",
-          backgroundColor: "#f8f9fa",
-          color: "#6c757d",
-          textAlign: "center",
-        }}
-      >
-        <em>Missing component</em>
-      </div>
-    );
-
-    return function EmptyDraggableCard(props) {
-      return <DraggableCard {...props} component={EmptyComponent} />;
+    return function SafeDraggableCard(props) {
+      console.warn("⚠️ SafeDraggableCard rendering (missing component)");
+      return (
+        <DraggableCard
+          {...props}
+          component={DebugComponent}
+          data={{ ...props.data, error: "Missing component" }}
+        />
+      );
     };
   }
 
