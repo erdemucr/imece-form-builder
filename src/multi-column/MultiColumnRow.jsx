@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
-import React, { useCallback } from "react";
-import { DndContext, useDndMonitor, DragOverlay } from "@dnd-kit/core";
+import React, { useCallback, useState } from "react";
+import { DndContext } from "@dnd-kit/core";
 
 import ComponentHeader from "../form-elements/component-header";
 import ComponentLabel from "../form-elements/component-label";
@@ -87,21 +87,6 @@ const MultiColumnRowBase = (props) => {
     [childItems, data, setAsChild]
   );
 
-  // İsteğe bağlı: Drag overlay için
-  const [activeItem, setActiveItem] = React.useState(null);
-
-  useDndMonitor({
-    onDragStart(event) {
-      setActiveItem(event.active.data.current);
-    },
-    onDragEnd() {
-      setActiveItem(null);
-    },
-    onDragCancel() {
-      setActiveItem(null);
-    },
-  });
-
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <div style={{ ...style }} className={baseClasses} data-row-id={id}>
@@ -137,24 +122,6 @@ const MultiColumnRowBase = (props) => {
           </div>
         </div>
       </div>
-
-      {/* İsteğe bağlı: Drag overlay */}
-      <DragOverlay>
-        {activeItem && !isContainer(activeItem) ? (
-          <div
-            style={{
-              opacity: 0.8,
-              cursor: "grabbing",
-              backgroundColor: "white",
-              padding: "8px",
-              borderRadius: "4px",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            {activeItem.data?.text || activeItem.toolbarData?.name || "Item"}
-          </div>
-        ) : null}
-      </DragOverlay>
     </DndContext>
   );
 };

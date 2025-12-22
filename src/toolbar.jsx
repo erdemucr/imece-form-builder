@@ -1,4 +1,4 @@
-/**
+/** toolbar.jsx
  * <Toolbar />
  */
 

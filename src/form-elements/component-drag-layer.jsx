@@ -1,160 +1,185 @@
-import React from "react";
-import {
-  useDndMonitor,
-  useDndContext,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
-} from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import { BoxDragPreview } from "./component-drag-preview";
+/* eslint-disable camelcase */
+import React, { useCallback, useState } from "react";
+import { DndContext } from "@dnd-kit/core";
 
-const dropAnimationConfig = {
-  sideEffects: defaultDropAnimationSideEffects({
-    styles: {
-      active: {
-        opacity: "0.4",
-      },
-    },
-  }),
-};
+import ComponentHeader from "../form-elements/component-header";
+import ComponentLabel from "../form-elements/component-label";
+import Dustbin from "../multi-column/dustbin";
+import store from "../stores/store";
+import ItemTypes from "../ItemTypes";
 
-const CustomDragLayer = () => {
-  const { active, over } = useDndContext();
-  const [draggedItem, setDraggedItem] = React.useState(null);
-  const [clientOffset, setClientOffset] = React.useState(null);
+/* ---------------- helpers ---------------- */
 
-  useDndMonitor({
-    onDragStart(event) {
-      setDraggedItem(event.active.data.current);
-      setClientOffset({
-        x: event.initialCoordinates.client.x,
-        y: event.initialCoordinates.client.y,
-      });
-    },
-    onDragMove(event) {
-      if (event.delta) {
-        setClientOffset({
-          x: event.initialCoordinates.client.x + event.delta.x,
-          y: event.initialCoordinates.client.y + event.delta.y,
-        });
+function isContainer(item) {
+  if (!item) return false;
+
+  if (item.itemType !== ItemTypes.CARD) {
+    const { data } = item;
+    if (data) {
+      if (data.isContainer) return true;
+      if (data.field_name) {
+        return (
+          data.field_name.includes("_col_row") ||
+          data.field_name.includes("fieldset")
+        );
       }
-    },
-    onDragEnd() {
-      // Sürükleme bittiğinde state'i temizle
-      setTimeout(() => {
-        setDraggedItem(null);
-        setClientOffset(null);
-      }, 0);
-    },
-    onDragCancel() {
-      setDraggedItem(null);
-      setClientOffset(null);
-    },
-  });
-
-  // Aktif sürükleme yoksa render etme
-  if (!active || !draggedItem) {
-    return null;
-  }
-
-  const renderItem = () => {
-    const itemType = draggedItem?.type;
-
-    switch (itemType) {
-      case "BOX":
-      case "CARD":
-        return <BoxDragPreview item={draggedItem} />;
-      default:
-        return null;
     }
-  };
+  }
+  return false;
+}
 
-  // DragOverlay ile daha basit ve efektif çözüm
-  return (
-    <DragOverlay
-      dropAnimation={dropAnimationConfig}
-      modifiers={
-        [
-          // İsteğe bağlı: sürükleme sırasında dönüşüm efekti ekleyebilirsiniz
-        ]
+/* ---------------- base ---------------- */
+
+const MultiColumnRowBase = (props) => {
+  const {
+    controls,
+    data,
+    editModeOn,
+    getDataById,
+    setAsChild,
+    removeChild,
+    seq,
+    className,
+    index,
+    style,
+    id,
+  } = props;
+
+  const { childItems = [], pageBreakBefore } = data;
+
+  let baseClasses = "SortableItem rfb-item";
+  if (pageBreakBefore) baseClasses += " alwaysbreak";
+
+  const handleDragEnd = useCallback(
+    ({ active, over }) => {
+      if (!over) return;
+
+      const droppedItem = active.data?.current;
+      const target = over.data?.current;
+
+      if (!droppedItem || !target) return;
+
+      // same column + same parent → no-op
+      if (
+        droppedItem.col === target.col &&
+        droppedItem.parentIndex === target.parentIndex
+      ) {
+        return;
       }
-    >
-      {renderItem()}
-    </DragOverlay>
+
+      // container cannot be dropped
+      if (isContainer(droppedItem)) return;
+
+      const isBusy =
+        Array.isArray(childItems) && childItems[target.col] !== null;
+
+      const isNew = !droppedItem.data?.id;
+      const itemData = isNew
+        ? droppedItem.onCreate?.(droppedItem.data)
+        : droppedItem.data;
+
+      setAsChild?.(data, itemData, target.col, isBusy);
+
+      if (isNew && droppedItem.onCreate) {
+        store.dispatch("deleteLastItem");
+      }
+    },
+    [childItems, data, setAsChild]
+  );
+
+  return (
+    <DndContext onDragEnd={handleDragEnd}>
+      <div style={{ ...style }} className={baseClasses} data-row-id={id}>
+        <ComponentHeader {...props} />
+        <div>
+          <ComponentLabel {...props} />
+          <div className="row">
+            {childItems.map((x, i) => (
+              <div
+                key={`${data.id}-col-${i}-${x || "_"}`}
+                className={className}
+              >
+                {controls ? (
+                  controls[i]
+                ) : (
+                  <Dustbin
+                    id={`${data.id}-col-${i}`}
+                    style={{ width: "100%" }}
+                    data={data}
+                    items={childItems}
+                    col={i}
+                    parentIndex={index}
+                    editModeOn={editModeOn}
+                    _onDestroy={() => removeChild(data, i)}
+                    getDataById={getDataById}
+                    setAsChild={setAsChild}
+                    seq={seq}
+                    accept={["CARD", "BOX", "TOOLBAR_ITEM"]}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DndContext>
   );
 };
 
-// Alternatif: Özel stillerle daha gelişmiş katman (eğer DragOverlay yeterli değilse)
-export const AdvancedCustomDragLayer = () => {
-  const { active, over } = useDndContext();
-  const [draggedItem, setDraggedItem] = React.useState(null);
-  const [position, setPosition] = React.useState({ x: 0, y: 0 });
+/* ---------------- wrappers ---------------- */
 
-  useDndMonitor({
-    onDragStart(event) {
-      setDraggedItem(event.active.data.current);
-    },
-    onDragMove(event) {
-      if (event.delta) {
-        setPosition({
-          x: event.delta.x,
-          y: event.delta.y,
-        });
-      }
-    },
-    onDragEnd() {
-      setDraggedItem(null);
-      setPosition({ x: 0, y: 0 });
-    },
-    onDragCancel() {
-      setDraggedItem(null);
-      setPosition({ x: 0, y: 0 });
-    },
-  });
+const TwoColumnRow = ({ data, class_name, ...rest }) => {
+  const className = class_name || "col-md-6";
 
-  if (!active || !draggedItem) {
-    return null;
-  }
-
-  const transform = CSS.Translate.toString({
-    x: position.x,
-    y: position.y,
-  });
-
-  const layerStyles = {
-    position: "fixed",
-    pointerEvents: "none",
-    zIndex: 9999,
-    left: 0,
-    top: 0,
-    width: "100%",
-    height: "100%",
-  };
-
-  const itemStyles = {
-    transform,
-    position: "absolute",
-    top: 0,
-    left: 0,
-  };
-
-  const renderItem = () => {
-    const itemType = draggedItem?.type;
-
-    switch (itemType) {
-      case "BOX":
-      case "CARD":
-        return <BoxDragPreview item={draggedItem} />;
-      default:
-        return null;
+  // React.useEffect ile güvenli şekilde state güncelle
+  React.useEffect(() => {
+    if (!data.childItems) {
+      data.childItems = [null, null];
+      data.isContainer = true;
     }
-  };
+  }, [data]);
 
-  return (
-    <div style={layerStyles}>
-      <div style={itemStyles}>{renderItem()}</div>
-    </div>
-  );
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
 };
 
-export default CustomDragLayer;
+const ThreeColumnRow = ({ data, class_name, ...rest }) => {
+  const className = class_name || "col-md-4";
+
+  React.useEffect(() => {
+    if (!data.childItems) {
+      data.childItems = [null, null, null];
+      data.isContainer = true;
+    }
+  }, [data]);
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+const FourColumnRow = ({ data, class_name, ...rest }) => {
+  const className = class_name || "col-md-3";
+
+  React.useEffect(() => {
+    if (!data.childItems) {
+      data.childItems = [null, null, null, null];
+      data.isContainer = true;
+    }
+  }, [data]);
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+const MultiColumnRow = ({ data, ...rest }) => {
+  const colCount = data.col_count || 4;
+  const className = data.class_name || (colCount === 4 ? "col-md-3" : "col");
+
+  React.useEffect(() => {
+    if (!data.childItems) {
+      data.childItems = Array.from({ length: colCount }, () => null);
+      data.isContainer = true;
+    }
+  }, [data, colCount]);
+
+  return <MultiColumnRowBase {...rest} className={className} data={data} />;
+};
+
+export { TwoColumnRow, ThreeColumnRow, FourColumnRow, MultiColumnRow };

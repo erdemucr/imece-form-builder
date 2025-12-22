@@ -86,95 +86,43 @@ function isContainer(item) {
 
 const Dustbin = ({
   id,
-  col,
-  items,
-  parentIndex,
+  style,
   data,
-  getDataById,
-  onDropSuccess,
-  setAsChild,
-  accept = ["CARD", "BOX", "TOOLBAR_ITEM"], // Kabul edilen drag tipleri
-  ...rest
+  col,
+  parentIndex,
+  accept = ["CARD", "BOX", "TOOLBAR_ITEM"],
+  children,
 }) => {
-  const item = getDataById(items[col]);
-
-  const { isOver, setNodeRef, active, over } = useDroppable({
-    id: id || `dustbin-${parentIndex}-${col}`,
+  const { setNodeRef, isOver, over } = useDroppable({
+    id: id || `dustbin-${Date.now()}`,
     data: {
-      type: "DUSTBIN",
+      type: "DROP_ZONE",
       col,
       parentIndex,
-      containerData: data,
-      acceptTypes: accept,
+      parentData: data,
+      accept,
     },
   });
 
-  const draggedItem = active?.data?.current;
-  const sameCard = draggedItem && draggedItem.parentIndex === parentIndex;
-
-  // Aktif öğe bu dustbin'e uyuyor mu kontrol et
-  const canDrop = draggedItem && accept.includes(draggedItem.type);
-
-  let backgroundColor = "rgba(0, 0, 0, .03)";
-
-  if (isOver && canDrop && !sameCard && !isContainer(draggedItem)) {
-    backgroundColor = "#F7F589";
-  } else if (isOver && canDrop && isContainer(draggedItem)) {
-    backgroundColor = "#D4EDDA"; // Konteyner için farklı renk
-  }
-
-  // Drop işlemi başarılı olduğunda callback çağır
-  React.useEffect(() => {
-    if (over?.id === id && onDropSuccess && draggedItem) {
-      onDropSuccess(draggedItem, { col, parentIndex, data });
-    }
-  }, [over, id, onDropSuccess, draggedItem, col, parentIndex, data]);
-
-  const element = getElement(item, rest);
+  const dropStyle = {
+    ...style,
+    minHeight: "60px",
+    border: `2px ${isOver ? "dashed #007bff" : "dashed #e0e0e0"}`,
+    borderRadius: "4px",
+    padding: "10px",
+    backgroundColor: isOver ? "rgba(0, 123, 255, 0.05)" : "transparent",
+    transition: "all 0.2s ease",
+  };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={getStyle(backgroundColor, isOver && canDrop, sameCard)}
-      className="dustbin"
-      data-dustbin-col={col}
-      data-parent-index={parentIndex}
-    >
-      {/* Drop alanı overlay'i (isteğe bağlı) */}
-      {isOver && canDrop && !sameCard && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(247, 245, 137, 0.3)",
-            zIndex: 1,
-            pointerEvents: "none",
-          }}
-        />
+    <div ref={setNodeRef} style={dropStyle} className="dustbin">
+      {children || (
+        <div style={{ textAlign: "center", color: "#999" }}>
+          <i className="fas fa-plus" style={{ marginRight: "8px" }} />
+          Drop here
+        </div>
       )}
-
-      {/* İçerik */}
-      <div style={{ position: "relative", zIndex: 2 }}>
-        {!element ? (
-          <div
-            style={{
-              padding: "1rem",
-              textAlign: "center",
-              color: "#6c757d",
-              fontStyle: "italic",
-            }}
-          >
-            Element'i buraya sürükleyin
-          </div>
-        ) : (
-          element
-        )}
-      </div>
     </div>
   );
 };
-
 export default Dustbin;
