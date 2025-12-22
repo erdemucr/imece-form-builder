@@ -23,12 +23,33 @@ const DraggableCard = (props) => {
     parentIndex,
     col,
     isDraggable = true,
+    style: customStyle = {},
     ...restProps
   } = props;
 
+  // ComposedComponent kontrolü - UNDEFINED olmamalı
   if (!ComposedComponent) {
-    console.error("❌ DraggableCard received undefined component", props);
-    return null;
+    console.error("❌ DraggableCard received undefined component:", {
+      props,
+      data,
+      element: data?.element,
+    });
+
+    // Fallback bileşeni göster
+    return (
+      <div
+        style={{
+          border: "1px solid #ff6b6b",
+          padding: "10px",
+          marginBottom: "8px",
+          backgroundColor: "#ffeaea",
+          color: "#ff6b6b",
+        }}
+      >
+        <strong>Error:</strong> Component not found for element: "
+        {data?.element}"
+      </div>
+    );
   }
 
   const {
@@ -41,10 +62,10 @@ const DraggableCard = (props) => {
     isOver,
     over,
   } = useSortable({
-    id: id.toString(),
+    id: id?.toString() || `card-${Date.now()}`,
     disabled: !isDraggable,
     data: {
-      type: "CARD",
+      type: "FORM_ELEMENT",
       index,
       id,
       data,
@@ -56,17 +77,25 @@ const DraggableCard = (props) => {
   });
 
   const dragStyle = {
-    ...style,
     transform: CSS.Translate.toString(transform),
     transition: transition || undefined,
     opacity: isDragging ? 0.5 : 1,
     cursor: isDraggable ? (isDragging ? "grabbing" : "grab") : "default",
     position: "relative",
     zIndex: isDragging ? 1000 : 1,
+    ...customStyle,
   };
 
   return (
-    <div ref={setNodeRef} style={dragStyle} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={dragStyle}
+      {...attributes}
+      {...listeners}
+      className="draggable-card"
+      data-element-type={data?.element}
+      data-card-id={id}
+    >
       <ComposedComponent
         {...restProps}
         index={index}
@@ -81,7 +110,6 @@ const DraggableCard = (props) => {
         isOver={isOver}
         dragAttributes={attributes}
         dragListeners={listeners}
-        style={{ opacity: isDragging ? 0.7 : 1 }}
       />
     </div>
   );
@@ -98,12 +126,14 @@ DraggableCard.propTypes = {
   parentIndex: PropTypes.number,
   col: PropTypes.number,
   isDraggable: PropTypes.bool,
+  style: PropTypes.object,
 };
 
 DraggableCard.defaultProps = {
   seq: -1,
   moveCard: () => {},
   isDraggable: true,
+  style: {},
 };
 
 // Alternatif: useDraggable ve useDroppable kullanan versiyon (daha gelişmiş kontrol için)
@@ -210,14 +240,32 @@ export const DraggableDropCard = (props) => {
 export default function createDraggableCard(ComposedComponent) {
   if (!ComposedComponent) {
     console.error("❌ createDraggableCard called with undefined component");
-    return () => null;
+
+    // Boş bir bileşen döndür
+    const EmptyComponent = () => (
+      <div
+        style={{
+          border: "1px dashed #ccc",
+          padding: "10px",
+          margin: "5px",
+          backgroundColor: "#f8f9fa",
+          color: "#6c757d",
+          textAlign: "center",
+        }}
+      >
+        <em>Missing component</em>
+      </div>
+    );
+
+    return function EmptyDraggableCard(props) {
+      return <DraggableCard {...props} component={EmptyComponent} />;
+    };
   }
 
   return function WrappedDraggableCard(props) {
     return <DraggableCard {...props} component={ComposedComponent} />;
   };
 }
-
 // Yardımcı fonksiyon: @dnd-kit için useDraggable ve useDroppable hook'larını içe aktar
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 

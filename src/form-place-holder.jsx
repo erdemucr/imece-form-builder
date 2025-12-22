@@ -1,33 +1,58 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+// form-place-holder.js
+import React from "react";
+import { useDroppable } from "@dnd-kit/core";
 
-const PLACE_HOLDER = 'form-place-holder';
-const PLACE_HOLDER_HIDDEN = 'form-place-holder-hidden';
+const PlaceHolder = (props) => {
+  const {
+    id,
+    show,
+    index,
+    moveCard,
+    insertCard,
+    style: customStyle,
+    children,
+    className = "",
+  } = props;
 
-class PlaceHolder extends React.Component {
-  render() {
-    const { intl } = this.props;
-    const placeHolderClass = this.props.show ? PLACE_HOLDER : PLACE_HOLDER_HIDDEN;
-    // eslint-disable-next-line no-nested-ternary
-    const placeHolder = this.props.show ?
-          (this.props.text === 'Dropzone' ? intl.formatMessage({ id: 'drop-zone' }) : this.props.text) : '';
+  const { setNodeRef, isOver } = useDroppable({
+    id: id || `placeholder-${index}`,
+    data: {
+      type: "PLACEHOLDER",
+      index,
+      moveCard,
+      insertCard,
+    },
+  });
 
-    return (
-      <div className={placeHolderClass} >
-        <div>{placeHolder}</div>
-      </div>
-    );
-  }
-}
+  if (!show) return null;
 
-export default injectIntl(PlaceHolder);
-PlaceHolder.propTypes = {
-  text: PropTypes.string,
-  show: PropTypes.bool,
+  const style = {
+    minHeight: "60px",
+    border: `2px ${isOver ? "dashed #007bff" : "dashed #ccc"}`,
+    borderRadius: "4px",
+    margin: "8px 0",
+    padding: "16px",
+    backgroundColor: isOver ? "rgba(0, 123, 255, 0.05)" : "transparent",
+    transition: "all 0.2s ease",
+    textAlign: "center",
+    color: "#6c757d",
+    ...customStyle,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`form-place-holder ${className}`}
+      data-placeholder-index={index}
+    >
+      {children || "Drop form elements here"}
+    </div>
+  );
 };
 
-PlaceHolder.defaultProps = {
-  text: 'Dropzone',
-  show: false,
-};
+// Named export olarak export edin
+export { PlaceHolder };
+
+// Ayrıca default export da sağlayın (eski kodlarla uyumluluk için)
+export default PlaceHolder;

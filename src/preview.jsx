@@ -308,38 +308,74 @@ const Preview = (props) => {
   };
 
   const getElement = (item, index) => {
-    if (!item || !item.element) return null;
-
-    if (item.custom && !item.component) {
-      if (props.registry) {
-        item.component = props.registry.get(item.key);
-      }
-    }
-
-    const SortableFormElement = SortableFormElements[item.element];
-
-    if (!SortableFormElement) {
+    if (!item || !item.element) {
+      console.warn("Invalid item in getElement:", item);
       return null;
     }
 
+    // Custom element kontrolü
+    if (item.custom) {
+      if (!item.component || typeof item.component !== "function") {
+        item.component = this.props.registry.get(item.key);
+        if (!item.component) {
+          console.error(`Custom element "${item.key}" was not registered`);
+          return (
+            <div className="form-element-error">
+              Error: Custom element "{item.key}" not found
+            </div>
+          );
+        }
+      }
+    }
+
+    // Form elementini bul
+    const SortableFormElement = SortableFormElements[item.element];
+
+    if (!SortableFormElement) {
+      console.error(
+        `Form element "${item.element}" not found in SortableFormElements. Available elements:`,
+        Object.keys(SortableFormElements)
+      );
+
+      // Fallback bileşeni göster
+      const FallbackComponent = () => (
+        <div
+          style={{
+            border: "1px solid #ffc107",
+            padding: "12px",
+            marginBottom: "8px",
+            backgroundColor: "#fff3cd",
+            color: "#856404",
+          }}
+        >
+          <strong>Warning:</strong> Form element "{item.element}" not loaded
+          <div style={{ fontSize: "12px", marginTop: "4px" }}>
+            ID: {item.id}, Type: {item.element}
+          </div>
+        </div>
+      );
+
+      return <FallbackComponent key={item.id} />;
+    }
+
     return (
-      <SortableItem
-        key={item.id}
+      <SortableFormElement
         id={item.id}
-        data={item}
+        seq={this.seq}
         index={index}
-        seq={seq.current}
-        moveCard={() => {}} // Not needed with dnd-kit
-        insertCard={insertCard}
+        moveCard={this.moveCard}
+        insertCard={this.insertCard}
         mutable={false}
-        parent={parent}
-        editModeOn={editModeOn}
+        parent={this.props.parent}
+        editModeOn={this.props.editModeOn}
         isDraggable={true}
-        getDataById={getDataById}
-        setAsChild={setAsChild}
-        removeChild={removeChild}
-        _onDestroy={_onDestroy}
-        item={item}
+        key={item.id}
+        sortData={item.id}
+        data={item}
+        getDataById={this.getDataById}
+        setAsChild={this.setAsChild}
+        removeChild={this.removeChild}
+        _onDestroy={this._onDestroy}
       />
     );
   };
